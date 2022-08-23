@@ -3,6 +3,7 @@
  * This file is part of libgpiod.
  *
  * Copyright (C) 2018-2019 Bartosz Golaszewski <bgolaszewski@baylibre.com>
+ * Modified 2022 by Petr Gotthard <petr.gotthard@centrum.cz>
  */
 
 #include <glib.h>
@@ -25,20 +26,49 @@ enum {
 	GPIODBUS_LINE_OBJECT_PROP_USED,
 	GPIODBUS_LINE_OBJECT_PROP_OPEN_DRAIN,
 	GPIODBUS_LINE_OBJECT_PROP_OPEN_SOURCE,
+	GPIODBUS_LINE_OBJECT_PROP_VALUE,
 };
 
-G_DEFINE_TYPE(GpioDBusLineObject, gpiodbus_line_object,
-	      GPIO_DBUS_TYPE_LINE_SKELETON);
+gboolean handle_request_output(GpioDBusLine *object, GDBusMethodInvocation *invocation,
+	gboolean arg_default)
+{
+	GpioDBusLineObject *line_obj = GPIODBUS_LINE_OBJECT(object);
+	g_autoptr(GError) err = NULL;
+	gboolean ret;
+
+	ret = g_gpiod_line_request_output(line_obj->line, "gpio-dbus", FALSE, arg_default, &err);
+	if (!ret)
+		g_dbus_method_invocation_return_gerror(invocation, err);
+
+	/* success */
+	g_dbus_method_invocation_return_value(invocation, NULL);
+	return TRUE;
+}
+
+static void
+gpiodbus_line_iface_init(GpioDBusLineIface *iface)
+{
+	iface->handle_request_output  = handle_request_output;
+}
+
+G_DEFINE_TYPE_WITH_CODE(GpioDBusLineObject, gpiodbus_line_object,
+			GPIO_DBUS_TYPE_LINE_SKELETON,
+			G_IMPLEMENT_INTERFACE(GPIO_DBUS_TYPE_LINE,
+					      gpiodbus_line_iface_init));
 
 static void gpiodbus_line_object_set_property(GObject *obj, guint prop_id,
 					      const GValue *val,
 					      GParamSpec *pspec)
 {
 	GpioDBusLineObject *line_obj = GPIODBUS_LINE_OBJECT(obj);
+	g_autoptr(GError) err = NULL;
 
 	switch (prop_id) {
 	case GPIODBUS_LINE_OBJECT_PROP_LINE:
 		line_obj->line = g_object_ref(g_value_get_object(val));
+		break;
+	case GPIODBUS_LINE_OBJECT_PROP_VALUE:
+		g_gpiod_line_set_value(line_obj->line, g_value_get_boolean(val), &err);
 		break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID(obj, prop_id, pspec);
@@ -100,6 +130,10 @@ static void gpiodbus_line_object_get_property(GObject *obj, guint prop_id,
 		g_value_set_boolean(val,
 				g_gpiod_line_is_open_source(line_obj->line));
 		break;
+	case GPIODBUS_LINE_OBJECT_PROP_VALUE:
+		g_value_set_boolean(val,
+				g_gpiod_line_get_value(line_obj->line, &err));
+		break;
 	default:
 		G_OBJECT_WARN_INVALID_PROPERTY_ID(obj, prop_id, pspec);
 		break;
@@ -160,6 +194,10 @@ gpiodbus_line_object_class_init(GpioDBusLineObjectClass *line_obj_class)
 	g_object_class_override_property(class,
 					 GPIODBUS_LINE_OBJECT_PROP_OPEN_SOURCE,
 					 "open-source");
+
+	g_object_class_override_property(class,
+					 GPIODBUS_LINE_OBJECT_PROP_VALUE,
+					 "value");
 }
 
 static void gpiodbus_line_object_init(GpioDBusLineObject *line_obj)

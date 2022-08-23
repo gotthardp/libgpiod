@@ -2,7 +2,8 @@
 
 <!-- This file is part of libgpiod.
 
-     Copyright (C) 2018-2019 Bartosz Golaszewski <bartekgola@gmail.com> -->
+     Copyright (C) 2018-2019 Bartosz Golaszewski <bartekgola@gmail.com>
+     Modified 2022 by Petr Gotthard <petr.gotthard@centrum.cz> -->
 
 <!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
  "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
@@ -36,6 +37,18 @@
   </interface>
 
   <interface name='org.gpiod1.Line'>
+    <method name="RequestOutput">
+      <arg name="default" direction="in" type="b">
+        <doc:doc><doc:summary>Initial line value</doc:summary></doc:doc>
+      </arg>
+      <doc:doc>
+        <doc:description>
+          <doc:para>
+            Reserve a single line, set the direction to output.
+          </doc:para>
+        </doc:description>
+      </doc:doc>
+    </method>
 
     <property name='Offset' type='u' access='read' />
     <property name='Name' type='s' access='read' />
@@ -45,6 +58,8 @@
     <property name='Used' type='b' access='read' />
     <property name='OpenDrain' type='b' access='read' />
     <property name='OpenSource' type='b' access='read' />
+
+    <property name='Value' type='b' access='readwrite'/>
 
   </interface>
 
